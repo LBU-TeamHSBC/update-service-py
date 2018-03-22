@@ -1,7 +1,7 @@
 config = {
     'db': {
-        'user': 'employme',
-        'password': 'OfkDT7@Xauc-VVMG0Ds=',
+        'user': 'employme',                 # Update with real username
+        'password': 'OfkDT7@Xauc-VVMG0Ds=', # !!! CHANGE THIS !!!
         'host': '127.0.0.1',
         'database': 'employme'
     },
