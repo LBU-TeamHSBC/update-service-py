@@ -1,2 +1,2 @@
-from .Adapter import Adapter
-from .GitHubAdapter import GitAdapter
+from .adapter import Adapter
+from .gitHubAdapter import GitHubAdapter

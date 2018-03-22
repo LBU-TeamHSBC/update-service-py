@@ -2,7 +2,7 @@
 
 import mysql.connector
 from config import config
-from adapters import GitAdapter
+from adapters import GitHubAdapter
 
 from pprint import pprint
 
@@ -14,7 +14,7 @@ class UpdateService(object):
         INNER JOIN vendor v ON v.id=sv.vendor_id"""
 
     SERVICE_MAP = {
-        1: GitAdapter,
+        1: GitHubAdapter,
         # 2: UdemyAdapter,
         # 3: UdacityAdapter,
         # 4: LbuAdapter
@@ -34,7 +34,6 @@ class UpdateService(object):
                 AdapterClass = UpdateService.SERVICE_MAP[vid]
                 data = AdapterClass(uid, oauth).getData()
                 if cat == UpdateService.SERVICE_TYPE_MAP['project']:
-                    print('project')
                     for project in data:
                         print(project)
                 else:

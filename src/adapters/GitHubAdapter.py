@@ -2,11 +2,11 @@ from adapters import Adapter
 from config import config
 import requests
 
-class GitAdapter(Adapter):
+class GitHubAdapter(Adapter):
     BASE_URL = config['git']['base_url']
 
     def getData(self):
-        r = requests.get(GitAdapter.BASE_URL + '/repos/' + str(self.user_id))
+        r = requests.get(GitHubAdapter.BASE_URL + '/repos/' + str(self.user_id))
         data = []
         for repo in r.json():
             langs = self.getLanguageTags(repo['name'])
@@ -24,6 +24,6 @@ class GitAdapter(Adapter):
         return data
 
     def getLanguageTags(self, repo_name):
-        url = '{}/repos/{}/{}/languages'.format(GitAdapter.BASE_URL, str(self.user_id), repo_name)
+        url = '{}/repos/{}/{}/languages'.format(GitHubAdapter.BASE_URL, str(self.user_id), repo_name)
         r = requests.get(url)
         return r.json()
