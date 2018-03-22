@@ -1,47 +1,48 @@
 #!/usr/bin/env python3
 
 import mysql.connector
-import requests
+from config import config
+from adapters import GitAdapter
+
 from pprint import pprint
 
-
-class GitAdapter(object):
-    BASE_URL = 'http://127.0.0.1:3000/git/'
-
-    def __init__(self, user_id):
-        self.user_id = user_id
-
-    def getRepos(self):
-        r = requests.get(GitAdapter.BASE_URL + '/repos/' + str(self.user_id))
-        data = []
-        for repo in r.json():
-            langs = self.getLanguageTags(repo['name'])
-            repo_stats = {
-                'id': repo['id'],
-                'name': repo['name'],
-                'rating': repo['stars'],
-                'created': repo['created_at'].split('T')[0],
-                'updated': repo['updated_at'].split('T')[0],
-                'lines_of_code': sum(langs.values()),
-                'tags': {} }
-            for lang in langs:
-                repo_stats['tags'][lang] = int(langs[lang] / repo_stats['lines_of_code'] * 100)
-            data.append(repo_stats)
-        return data
-
-    def getLanguageTags(self, repo_name):
-        url = '{}/repos/{}/{}/languages'.format(GitAdapter.BASE_URL, str(self.user_id), repo_name)
-        r = requests.get(url)
-        return r.json()
-
-
 class UpdateService(object):
-    LINKED_ACCOUNTS_SQL = """SELECT u.username, sv.student_id, sv.oauth_token, v.id AS vendor_id, v.category
+    LINKED_ACCOUNTS_SQL = """SELECT sv.student_id, sv.oauth_token, v.id AS vendor_id, v.category
         FROM student_vendor AS sv
         INNER JOIN student s ON s.id=sv.student_id
         INNER JOIN user u ON u.id=s.user_id
         INNER JOIN vendor v ON v.id=sv.vendor_id"""
 
+    SERVICE_MAP = {
+        1: GitAdapter,
+        # 2: UdemyAdapter,
+        # 3: UdacityAdapter,
+        # 4: LbuAdapter
+    }
 
-#gitUser = GitAdapter(1)
-#pprint(gitUser.getRepos())
+    SERVICE_TYPE_MAP = {
+        'project': 'PROJECT',
+        'course': 'COURSE'
+    }
+    
+    def run(self):
+        try:
+            con = mysql.connector.connect(**config['db'])
+            cursor = con.cursor()
+            cursor.execute(UpdateService.LINKED_ACCOUNTS_SQL)
+            for (uid, oauth, vid, cat) in cursor:
+                AdapterClass = UpdateService.SERVICE_MAP[vid]
+                data = AdapterClass(uid, oauth).getData()
+                if cat == UpdateService.SERVICE_TYPE_MAP['project']:
+                    print('project')
+                    for project in data:
+                        print(project)
+                else:
+                    print('course')
+        except mysql.connector.Error as err:
+            print(err)
+        else:
+            con.close()
+
+updateService = UpdateService()
+updateService.run()
