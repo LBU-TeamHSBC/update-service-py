@@ -1,1 +1,2 @@
-from .project_processor import ProjectProcessor
+from .courseProcessor import CourseProcessor
+from .projectProcessor import ProjectProcessor

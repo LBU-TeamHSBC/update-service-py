@@ -7,5 +7,8 @@ config = {
     },
     'git': {
         'base_url': 'http://127.0.0.1:3000/git/'
+    },
+    'lbu': {
+        'base_url': 'http://127.0.0.1:3000/lbu/'
     }
 }

@@ -39,7 +39,7 @@ class ProjectProcessor(object):
             project['lines_of_code'],
             project['created'],
             project['updated'])
-
+        
         result = None
         cursor = self.db.cursor()
         if update == True:

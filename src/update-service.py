@@ -4,8 +4,8 @@ import mysql.connector
 from time import sleep
 
 from config import config
-from adapters import GitHubAdapter
-from processors import ProjectProcessor
+from adapters import GitHubAdapter, LbuAdapter
+from processors import CourseProcessor, ProjectProcessor
 
 class UpdateService(object):
     LINKED_ACCOUNTS_SQL = """SELECT sv.student_id, sv.oauth_token, v.id AS vendor_id, v.category
@@ -18,7 +18,7 @@ class UpdateService(object):
         1: GitHubAdapter,
         # 2: UdemyAdapter,
         # 3: UdacityAdapter,
-        # 4: LbuAdapter
+        4: LbuAdapter
     }
 
     SERVICE_TYPE_MAP = {
@@ -31,9 +31,12 @@ class UpdateService(object):
             print("Fetching data:")
             try:
                 db = mysql.connector.connect(**config['db'])
-                cursor = db.cursor()
-                cursor.execute(UpdateService.LINKED_ACCOUNTS_SQL)
+                
                 projProcessor = ProjectProcessor(db)
+                corsProcessor = CourseProcessor(db)
+
+                cursor = db.cursor(buffered=True)
+                cursor.execute(UpdateService.LINKED_ACCOUNTS_SQL)
                 for (sid, oauth, vid, cat) in cursor:
                     print("  ", sid, vid, cat)
                     AdapterClass = UpdateService.SERVICE_MAP[vid]
@@ -42,11 +45,13 @@ class UpdateService(object):
                         for project in data:
                             projProcessor.processProject(sid, vid, project)
                     else:
-                        print('course')
+                        for course in data:
+                            corsProcessor.processCourse(sid, vid, course)
+
                 cursor.close()
                 print("OK")
             except mysql.connector.Error as err:
-                print("Error", err)
+                print("Error:", err)
             else:
                 db.close()
 
