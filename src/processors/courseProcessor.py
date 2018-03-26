@@ -3,31 +3,9 @@ class CourseProcessor(object):
         self.db = db
     
     def processCourse(self, sid, vid, course):
-        # Check if course exists in DB, create if not
+        course_db_id = self._insertCourse(vid, course)
+
         cursor = self.db.cursor(buffered=True)
-
-        cursor.execute('''SELECT id
-            FROM course
-            WHERE vendor_id=%s AND course_id=%s''', (
-                vid,
-                course['id']))
-        
-        course_db_id = None
-        if cursor.rowcount > 0:
-            course_db_id = cursor.fetchone()[0]
-
-        if course_db_id is None:
-            cursor.execute('''INSERT INTO
-                course (course_id, vendor_id, name, rating, participant_count)
-                VALUES (%s, %s, %s, %s, %s)''', (
-                    course['id'],
-                    vid,
-                    course['name'],
-                    course['rating'],
-                    course['participant_count']))
-            course_db_id = cursor.lastrowid
-
-        # Delete / Insert tags for course
         cursor.execute('''DELETE FROM course_tag WHERE course_id=%s''', (course_db_id, ))
         for tag in course['tags']:
             tag_id = self._insertTag(tag)
@@ -38,7 +16,6 @@ class CourseProcessor(object):
                     tag_id,
                     course['tags'][tag]))
 
-        # Insert entry into student_course
         cursor.execute('''REPLACE INTO
             student_course (student_id, course_id, progress)
             VALUES (%s, %s, %s)''', (
@@ -46,34 +23,70 @@ class CourseProcessor(object):
                 course_db_id,
                 course['progress']))
         
-        # Insert modules
-        # TODO
+        for course_module in course['modules']:
+            cmodule_id = self._insertCourseModule(course_db_id, course_module)
+            self._insertStudentCourseModule(sid, cmodule_id, course_module['progress'])
+        cursor.close()
+    
+    def _dbIdOrNone(self, table, where):
+        cursor = self.db.cursor(buffered=True)
+        keys = list(where.keys())
+        where_statement = ' AND '.join(['{}=%s'.format(k) for k in keys])
+        where_vals = [where[k] for k in keys]
+        sql = '''SELECT id FROM {} WHERE {}'''.format(table, where_statement)
+        cursor.execute(sql, where_vals)
+        db_id = None
+        if cursor.rowcount > 0:
+            db_id = cursor.fetchone()[0]
+        cursor.close()
+        return db_id
+    
+    def _insertCourse(self, vid, course):
+        course_db_id = self._dbIdOrNone('course', {'vendor_id': vid, 'course_id': course['id']})
+        if course_db_id is None:
+            cursor = self.db.cursor(buffered=True)
+            cursor.execute('''INSERT INTO
+                course (course_id, vendor_id, name, rating, participant_count)
+                VALUES (%s, %s, %s, %s, %s)''', (
+                    course['id'],
+                    vid,
+                    course['name'],
+                    course['rating'],
+                    course['participant_count']))
+            course_db_id = cursor.lastrowid
+            cursor.close()
+        return course_db_id
+    
+    def _insertCourseModule(self, cid, module):
+        cmodule_db_id = self._dbIdOrNone('course_module', {'course_id': cid, 'module_id': module['id']})
+        if cmodule_db_id is None:
+            cursor = self.db.cursor(buffered=True)
+            cursor.execute('''INSERT INTO
+                course_module (module_id, course_id, name, weighting)
+                VALUES (%s, %s, %s, %s)''', (
+                    module['id'],
+                    cid,
+                    module['name'],
+                    module['weighting']))
+            cmodule_db_id = cursor.lastrowid
+            cursor.close()
+        return cmodule_db_id
 
+    def _insertStudentCourseModule(self, sid, cid, progress):
+        cursor = self.db.cursor(buffered=True)
+        cursor.execute('''REPLACE INTO
+            student_course_module (student_id, course_module_id, progress)
+            VALUES (%s, %s, %s)''', (
+                sid,
+                cid,
+                progress))
         cursor.close()
 
     def _insertTag(self, tag):
-        cursor = self.db.cursor(buffered=True)
-        cursor.execute('''SELECT id FROM tag WHERE name=%s''', (tag,))
-        if cursor.rowcount > 0:
-            tagId = cursor.fetchone()[0]
-        else:
+        tagId = self._dbIdOrNone('tag', {'name': tag})
+        if tagId is None:
             inCursor = self.db.cursor()
             inCursor.execute('''INSERT INTO tag (name) VALUES (%s)''', (tag,))
             tagId = inCursor.lastrowid
             inCursor.close()
-        cursor.close()
         return tagId
-
-# [
-# 	{
-#         modules: [
-#             {
-#                 id: course_module.id,
-#                 module_id: course_module.id,
-#                 name: course_module.name,
-#                 weighting: course_module.weighting,
-#                 progress: student_course_module.progress,
-#             }
-#         ]
-#     }
-# ]
