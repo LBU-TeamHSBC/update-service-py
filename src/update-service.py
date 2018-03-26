@@ -13,6 +13,11 @@ class UpdateService(object):
         INNER JOIN student s ON s.id=sv.student_id
         INNER JOIN user u ON u.id=s.user_id
         INNER JOIN vendor v ON v.id=sv.vendor_id"""
+    
+    COURSE_CLEANUP_SQL = """DELETE sc
+            FROM student_course AS sc
+            INNER JOIN course AS c ON c.id=sc.course_id
+            WHERE sc.student_id=%s AND c.vendor_id=%s"""
 
     SERVICE_MAP = {
         1: GitHubAdapter,
@@ -30,12 +35,12 @@ class UpdateService(object):
         while True:
             print("Fetching data:")
             try:
-                db = mysql.connector.connect(**config['db'])
+                self.db = mysql.connector.connect(**config['db'])
                 
-                projProcessor = ProjectProcessor(db)
-                corsProcessor = CourseProcessor(db)
+                projProcessor = ProjectProcessor(self.db)
+                corsProcessor = CourseProcessor(self.db)
 
-                cursor = db.cursor(buffered=True)
+                cursor = self.db.cursor(buffered=True)
                 cursor.execute(UpdateService.LINKED_ACCOUNTS_SQL)
                 for (sid, oauth, vid, cat) in cursor:
                     print("  ", sid, vid, cat)
@@ -45,6 +50,7 @@ class UpdateService(object):
                         for project in data:
                             projProcessor.processProject(sid, vid, project)
                     else:
+                        self._cleanCourses(sid, vid)
                         for course in data:
                             corsProcessor.processCourse(sid, vid, course)
 
@@ -53,13 +59,17 @@ class UpdateService(object):
             except mysql.connector.Error as err:
                 print("Error:", err)
             else:
-                db.close()
+                self.db.close()
 
             try:
                 sleep(300)
             except KeyboardInterrupt:
                 print("Exiting")
                 break
+    
+    def _cleanCourses(self, sid, vid):
+        cursor = self.db.cursor()
+        cursor.execute(UpdateService.COURSE_CLEANUP_SQL, (sid, vid))
 
 
 if __name__ == '__main__':
