@@ -1,7 +1,10 @@
 bin/
 lib/
+env/
 include/
 **/__pycache__/
 pip-selfcheck.json
 pyvenv.cfg
 *.swp
+.vscode/
+src/config.py
